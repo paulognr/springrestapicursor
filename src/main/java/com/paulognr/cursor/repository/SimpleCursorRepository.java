@@ -8,22 +8,25 @@ import com.paulognr.cursor.api.CursorList;
 import com.paulognr.cursor.api.CursorRepository;
 import com.paulognr.cursor.api.CursorResponse;
 import com.paulognr.cursor.api.Cursorable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.support.JpaEntityInformation;
-import org.springframework.data.jpa.repository.support.JpaEntityInformationSupport;
 import org.springframework.data.jpa.repository.support.SimpleJpaRepository;
-import org.springframework.data.util.ProxyUtils;
+import org.springframework.data.repository.NoRepositoryBean;
 
-public class SimpleCursorRepository<T, ID> extends SimpleJpaRepository<T, ID> implements CursorRepository<T, ID> {
+@NoRepositoryBean
+public abstract class SimpleCursorRepository<T, ID> extends SimpleJpaRepository<T, ID> implements CursorRepository<T, ID> {
 
-    private EntityManager entityManager;
+    private static final String KEY_ID = "id";
 
-    public SimpleCursorRepository(JpaEntityInformation entityInformation, EntityManager entityManager) {
+    private JpaEntityInformation entityInformation;
+
+    public SimpleCursorRepository(@Autowired(required = false) JpaEntityInformation<T, ?> entityInformation, EntityManager entityManager) {
         super(entityInformation, entityManager);
-        this.entityManager = entityManager;
+        this.entityInformation = entityInformation;
     }
 
     @Override
@@ -33,14 +36,19 @@ public class SimpleCursorRepository<T, ID> extends SimpleJpaRepository<T, ID> im
         boolean isBefore = false;
 
         Page<T> page;
+        String idFieldName = this.entityInformation.getIdAttribute().getName();
         if (cursorable.getAfter() != null) {
-            page = this.findAll(specification, PageRequest.of(0, cursorable.getSize() + 1, Sort.by("id")));
+            ID id = getIdValue(cursorable.getAfterField(KEY_ID));
+            page = this.findAll(greaterThanId(id),
+                    PageRequest.of(0, cursorable.getSize() + 1, Sort.by(idFieldName)));
             isAfter = true;
         } else if (cursorable.getBefore() != null) {
-            page = this.findAll(specification, PageRequest.of(0, cursorable.getSize() + 1, Sort.by(Sort.Direction.DESC, "id")));
+            ID id = getIdValue(cursorable.getBeforeField(KEY_ID));
+            page = this.findAll(lessThanId(id),
+                    PageRequest.of(0, cursorable.getSize() + 1, Sort.by(Sort.Direction.DESC, idFieldName)));
             isBefore = true;
         } else {
-            page = this.findAll(PageRequest.of(0, cursorable.getSize() + 1, Sort.by("id")));
+            page = this.findAll(PageRequest.of(0, cursorable.getSize() + 1, Sort.by(idFieldName)));
         }
 
         if (page.hasContent()) {
@@ -71,12 +79,14 @@ public class SimpleCursorRepository<T, ID> extends SimpleJpaRepository<T, ID> im
 
     private String getEncodedResponse(List<T> entities, Cursorable cursorable, int index) {
         T entity = entities.get(index);
-        return CursorResponse.of(cursorable.getSize()).add("id", getId(entity)).encode();
+        return CursorResponse.of(cursorable.getSize())
+                .add(KEY_ID, this.entityInformation.getId(entity))
+                .encode();
     }
 
-    private String getId(T entity) {
-        Class<?> type = ProxyUtils.getUserClass(entity);
-        JpaEntityInformation entityInformation = JpaEntityInformationSupport.getEntityInformation(type, entityManager);
-        return entityInformation.getId(entity).toString();
-    }
+    public abstract ID getIdValue(String id);
+
+    public abstract Specification<T> lessThanId(ID id);
+
+    public abstract Specification<T> greaterThanId(ID id);
 }

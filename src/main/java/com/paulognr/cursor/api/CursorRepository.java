@@ -8,4 +8,7 @@ import org.springframework.data.repository.NoRepositoryBean;
 @NoRepositoryBean
 public interface CursorRepository<T, ID> extends JpaRepository<T, ID>, JpaSpecificationExecutor<T> {
     CursorList<T> search(Specification<T> specification, Cursorable cursorable);
+    ID getIdValue(String id);
+    Specification<T> lessThanId(ID id);
+    Specification<T> greaterThanId(ID id);
 }

@@ -2,7 +2,7 @@ package com.paulognr.cursor.repository;
 
 import java.util.UUID;
 import com.paulognr.cursor.api.CursorRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.repository.NoRepositoryBean;
 
-@Repository
-public interface PersonRepository extends CursorRepository<Person, UUID> {}
+@NoRepositoryBean
+public interface PersonRepository extends CursorRepository<Person, UUID> { }
