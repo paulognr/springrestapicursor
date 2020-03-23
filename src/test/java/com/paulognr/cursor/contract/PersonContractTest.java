@@ -1,5 +1,7 @@
 package com.paulognr.cursor.contract;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import com.paulognr.cursor.Application;
 import com.paulognr.cursor.extension.HttpConfigExtension;
@@ -205,6 +207,14 @@ public class PersonContractTest {
     }
 
     @Test
+    public void testSortErrorById() {
+        PersonResource.search(7, "id, name").then()
+                .assertThat()
+                .statusCode(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+                .body("message", equalTo("@ID must be the last one for sorting"));
+    }
+
+    @Test
     public void testSortByIdDesc() {
         List<PersonDTO> peopleOrderedById = extractPeople(PersonResource.search(7).then().extract());
         List<PersonDTO> peopleOrderedByIdDesc = extractPeople(PersonResource.search(7, "-id").then().extract());
@@ -217,29 +227,84 @@ public class PersonContractTest {
 
     @Test
     public void testSortByIdDescTwoPages() {
-        List<PersonDTO> peopleOrderedById = extractPeople(PersonResource.search(7).then().extract());
+        List<PersonDTO> peopleOrderedByIdDesc = new ArrayList<>();
+        peopleOrderedByIdDesc.addAll(extractPeople(PersonResource.search(7).then().extract()));
+        Collections.reverse(peopleOrderedByIdDesc);
 
         ExtractableResponse<Response> extractableResponse = PersonResource.search(6, "-id").then().extract();
         String after = extractAfter(extractableResponse);
-        List<PersonDTO> firstPage = extractPeople(extractableResponse);
+        List<PersonDTO> response = extractPeople(extractableResponse);
 
-        assertThat(firstPage, hasSize(6));
-        for(int i = 0; i < firstPage.size(); i++) {
-            assertThat(firstPage.get(i).getId(), is(equalTo(peopleOrderedById.get(peopleOrderedById.size() - (i + 1)).getId())));
+        assertThat(response, hasSize(6));
+        for(int i = 0; i < response.size(); i++) {
+            assertThat(response.get(i).getId(), is(equalTo(peopleOrderedByIdDesc.get(i).getId())));
         }
 
         extractableResponse = PersonResource.searchAfter(after).then().extract();
         String before = extractBefore(extractableResponse);
-        List<PersonDTO> lastPage = extractPeople(extractableResponse);
+        response = extractPeople(extractableResponse);
 
-        assertThat(lastPage, hasSize(1));
-        assertThat(lastPage.get(0).getId(), is(equalTo(peopleOrderedById.get(0).getId())));
+        assertThat(response, hasSize(1));
+        assertThat(response.get(0).getId(), is(equalTo(peopleOrderedByIdDesc.get(peopleOrderedByIdDesc.size() - 1).getId())));
 
-        firstPage = extractPeople(PersonResource.searchBefore(before).then().extract());
+        response = extractPeople(PersonResource.searchBefore(before).then().extract());
 
-        assertThat(firstPage, hasSize(6));
-        for(int i = 0; i < firstPage.size(); i++) {
-            assertThat(firstPage.get(i).getId(), is(equalTo(peopleOrderedById.get(peopleOrderedById.size() - (i + 1)).getId())));
+        assertThat(response, hasSize(6));
+        for(int i = 0; i < response.size(); i++) {
+            assertThat(response.get(i).getId(), is(equalTo(peopleOrderedByIdDesc.get(i).getId())));
+        }
+    }
+
+    @Test
+    public void testItemPositionThreePagesSortIdDescending() {
+        List<PersonDTO> peopleOrderedByIdDesc = new ArrayList<>();
+        peopleOrderedByIdDesc.addAll(extractPeople(PersonResource.search(7).then().extract()));
+        Collections.reverse(peopleOrderedByIdDesc);
+
+        // first page 1 - 3 / 7
+        ExtractableResponse<Response> extractableResponse = PersonResource.search(3, "-id").then().extract();
+        String after = extractAfter(extractableResponse);
+        List<PersonDTO> responsePage = extractPeople(extractableResponse);
+
+        assertThat(responsePage, hasSize(3));
+        for(int i = 0; i < responsePage.size(); i++) {
+            assertThat(responsePage.get(i).getId(), is(equalTo(peopleOrderedByIdDesc.get(i).getId())));
+        }
+
+        // second page 4 - 6 / 7
+        extractableResponse = PersonResource.searchAfter(after).then().extract();
+        after = extractAfter(extractableResponse);
+        responsePage = extractPeople(extractableResponse);
+
+        assertThat(responsePage, hasSize(3));
+        for(int i = 0; i < responsePage.size(); i++) {
+            assertThat(responsePage.get(i).getId(), is(equalTo(peopleOrderedByIdDesc.get(i + 3).getId())));
+        }
+
+        // last page 7 / 7
+        extractableResponse = PersonResource.searchAfter(after).then().extract();
+        String before = extractBefore(extractableResponse);
+        responsePage = extractPeople(extractableResponse);
+
+        assertThat(responsePage, hasSize(1));
+        assertThat(responsePage.get(0).getId(), is(equalTo(peopleOrderedByIdDesc.get(peopleOrderedByIdDesc.size() - 1).getId())));
+
+        // second page 4 - 6 / 7
+        extractableResponse = PersonResource.searchBefore(before).then().extract();
+        before = extractBefore(extractableResponse);
+        responsePage = extractPeople(extractableResponse);
+
+        assertThat(responsePage, hasSize(3));
+        for(int i = 0; i < responsePage.size(); i++) {
+            assertThat(responsePage.get(i).getId(), is(equalTo(peopleOrderedByIdDesc.get(i + 3).getId())));
+        }
+
+        // first page 1 - 3 / 7
+        responsePage = extractPeople(PersonResource.searchBefore(before).then().extract());
+
+        assertThat(responsePage, hasSize(3));
+        for(int i = 0; i < responsePage.size(); i++) {
+            assertThat(responsePage.get(i).getId(), is(equalTo(peopleOrderedByIdDesc.get(i).getId())));
         }
     }
 

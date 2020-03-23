@@ -1,5 +1,6 @@
 package com.paulognr.cursor.api;
 
+import java.util.Arrays;
 import java.util.Base64;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -27,10 +28,6 @@ public final class CursorRequest implements Cursorable{
         this.sort = sort;
     }
 
-    public static CursorRequest of(int size) {
-        return new CursorRequest(size);
-    }
-
     public static CursorRequest of(int size, Sort sort) {
         return new CursorRequest(size, sort);
     }
@@ -39,6 +36,7 @@ public final class CursorRequest implements Cursorable{
         String decoded = new String(Base64.getDecoder().decode(after));
         CursorRequest cursorRequest = new CursorRequest(loadSize(decoded));
         cursorRequest.afterJsonNode = loadJsonNode(decoded);
+        cursorRequest.sort = loadSort(cursorRequest.afterJsonNode);
         cursorRequest.after = decoded;
         return cursorRequest;
     }
@@ -47,6 +45,7 @@ public final class CursorRequest implements Cursorable{
         String decoded = new String(Base64.getDecoder().decode(before));
         CursorRequest cursorRequest = new CursorRequest(loadSize(decoded));
         cursorRequest.beforeJsonNode = loadJsonNode(decoded);
+        cursorRequest.sort = loadSort(cursorRequest.beforeJsonNode);
         cursorRequest.before = decoded;
         return cursorRequest;
     }
@@ -90,9 +89,19 @@ public final class CursorRequest implements Cursorable{
     private static int loadSize(String decoded) {
         JsonNode json = loadJsonNode(decoded);
         if (json != null) {
-            return json.get("size").asInt();
+            return json.get(Cursorable.KEY_SIZE).asInt();
         }
         return 0;
+    }
+
+    private static Sort loadSort(JsonNode json) {
+        if (json != null) {
+            String sortText = json.get(Cursorable.KEY_SORT).asText();
+            if (sortText != null) {
+                return SortUtils.fromQueryParam(Arrays.asList(sortText.split(",")));
+            }
+        }
+        return null;
     }
 
     private static JsonNode loadJsonNode(String decoded) {

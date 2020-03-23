@@ -109,6 +109,35 @@ public class Sort {
         return new Sort(Arrays.asList(orders));
     }
 
+    public boolean isSorted() {
+        return !orders.isEmpty();
+    }
+
+    public boolean isUnsorted() {
+        return !isSorted();
+    }
+
+    public List<Order> getOrders() {
+        return this.orders;
+    }
+
+    public String asString() {
+        if (isSorted()) {
+            StringBuilder sort = new StringBuilder();
+            for (int i = 0; i < this.orders.size(); i++) {
+                Order order = this.orders.get(i);
+                if (i > 0) {
+                    sort.append(", ");
+                }
+                if (order.isDescending()) {
+                    sort.append("-");
+                }
+                sort.append(order.getProperty());
+            }
+            return sort.toString();
+        }
+        return null;
+    }
 
     public static enum Direction {
 
